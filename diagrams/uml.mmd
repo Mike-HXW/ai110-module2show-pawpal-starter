@@ -28,15 +28,17 @@ classDiagram
         +str category
         +time preferred_time
         +bool completed
+        +str frequency
+        +str pet_name
         +edit(**fields) void
-        +mark_done() void
+        +mark_complete() void
     }
 
     class Scheduler {
         +Owner owner
-        +build_plan() list~dict~
+        +build_plan() tuple~list~dict~, list~dict~~
         +sort_tasks(tasks) list~Task~
-        +fits_in_time(task, remaining) bool
+        +fits_in_time(task, remaining, cursor) bool
         +explain_choice(task) str
     }
 

@@ -12,7 +12,9 @@ My initial UML design includes classes: owner, pet, task, scheduler. Owners have
 **b. Design changes**
 
 - Did your design change during implementation?
+Yes.
 - If yes, describe at least one change and why you made it.
+After reviewing the class skeleton for missing relationships and logic bottlenecks, I made three changes. First, I added a `pet_name` field to Task, because a flat list of tasks could not say which pet each task belonged to, so the plan could not say whose task each entry was. Second, I decided that both of the owner's time limits apply: tasks must fall inside day_start to day_end and their total duration cannot exceed available_minutes, so `fits_in_time` now also takes the cursor time to check the end of the day. Third, `build_plan` now returns both the scheduled tasks and the skipped tasks with a reason, so the user can see what did not fit.
 
 ---
 
@@ -35,7 +37,9 @@ My initial UML design includes classes: owner, pet, task, scheduler. Owners have
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+I use AI tools to help brainstorm my design and check on my design by figuring out potential errors in my own design and improve it. It is also widly used to write codes in uml, main function and test cases. As the previously defined function is found not consistent to the guidance, it can refractor the code in all related files to correct it.
 - What kinds of prompts or questions were most helpful?
+The most useful prompts and questions are those with detailed target and object with clear guidance so that AI can handle this efficiently in the right direction as I sugguest without wasting computing power on wrong way.
 
 **b. Judgment and verification**
 
