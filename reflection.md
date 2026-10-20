@@ -5,7 +5,9 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+My initial UML design includes four classes: Owner, Pet, Task and Scheduler. The relationship between them is: An owner has one or more pets; A pet has zero or more tasks. Priority is a plain string ("low", "medium" or "high"). The Scheduler reads constraints and tasks from the Owner and returns the plan as a list of dicts.
 - What classes did you include, and what responsibilities did you assign to each?
+My initial UML design includes classes: owner, pet, task, scheduler. Owners have name, available minutes, day_start, day_end times preferences, and a list of pets. They can add and remove pets. Pets have their names, species, and a list of tasks. They can add and remove tasks. Tasks have its title, duration, priority, category and a completed flag. They can edit themselves. Scheduler builds the plan from the owner's constraints with an attribute of owner. They can build_plan, sort tasks and fit in time to arrange possible time slots.
 
 **b. Design changes**
 
