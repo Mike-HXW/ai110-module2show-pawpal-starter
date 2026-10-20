@@ -23,12 +23,16 @@ After reviewing the class skeleton for missing relationships and logic bottlenec
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+It looks at the owner's available minutes, the day window (day_start to day_end), each task's priority, and an optional preferred time. It also warns when two tasks overlap, and skips tasks that are already done or not due yet
 - How did you decide which constraints mattered most?
+Time limits come first, because the owner really can't do more than they have time for. Priority is next, so meds and feeding don't get dropped for grooming. Preferred time is just a nice-to-have, so it can move if it has to.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+It picks tasks greedily by priority, then lays them out in time order. When two tasks clash, it only warns and pushes the later one back, so a task can end up away from its preferred time. It may also not find the best possible fit.
 - Why is that tradeoff reasonable for this scenario?
+A pet owner has only a handful of tasks a day, so a simple greedy plan is fast and easy to understand. Each task also comes with a reason, and clashes show up as warnings, so the owner can adjust things by hand.
 
 ---
 

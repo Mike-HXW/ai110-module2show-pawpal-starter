@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
@@ -29,6 +29,7 @@ class Task:
     completed: bool = False
     frequency: str = "daily"  # "once" | "daily" | "weekly"
     pet_name: str = ""  # set by Pet.add_task so the plan can say whose task it is
+    due_date: Optional[date] = None  # None means due now; set on recurring follow-ups
 
     def __post_init__(self) -> None:
         """Validate the task's fields right after it is created."""
@@ -60,9 +61,21 @@ class Task:
                 setattr(self, name, value)
             raise
 
-    def mark_complete(self) -> None:
-        """Mark this task as completed."""
+    def mark_complete(self) -> Optional["Task"]:
+        """Mark this task completed and build the next occurrence if it recurs.
+
+        A "daily" task comes back due 1 day later and a "weekly" task 7 days later,
+        counted from its due_date (or today if it has none) with timedelta. The
+        copy is pending and gets a new id ending in its due date. A "once" task
+        returns None. The new task is not attached to a pet; see Pet.complete_task.
+        """
         self.completed = True
+        days = {"daily": 1, "weekly": 7}.get(self.frequency)
+        if days is None:
+            return None
+        next_due = (self.due_date or date.today()) + timedelta(days=days)
+        return replace(self, id=f"{self.id}-{next_due.isoformat()}",
+                       completed=False, due_date=next_due)
 
 
 @dataclass
@@ -86,6 +99,20 @@ class Pet:
             if t.id == task_id:
                 del self.tasks[i]
                 return
+        raise ValueError(f"{self.name} has no task with id {task_id!r}")
+
+    def complete_task(self, task_id: str) -> Optional[Task]:
+        """Complete a task by id and add its next occurrence to this pet.
+
+        Returns the new task for a daily or weekly task, or None for a "once" task.
+        Raises ValueError if the pet has no task with that id.
+        """
+        for t in self.tasks:
+            if t.id == task_id:
+                follow_up = t.mark_complete()
+                if follow_up is not None:
+                    self.add_task(follow_up)
+                return follow_up
         raise ValueError(f"{self.name} has no task with id {task_id!r}")
 
     def get_pending_tasks(self) -> list[Task]:
@@ -119,8 +146,33 @@ class Owner:
         raise ValueError(f"{self.name} has no pet named {name!r}")
 
     def get_all_tasks(self) -> list[Task]:
-        """Return the pending (not completed) tasks of all of this owner's pets."""
-        return [t for pet in self.pets for t in pet.get_pending_tasks()]
+        """Return the pending tasks of all pets that are due today or earlier.
+
+        Completed tasks and future-dated recurring copies are left out, so this is
+        the list the scheduler plans from. Use filter_tasks to see everything.
+        """
+        today = date.today()
+        return [t for pet in self.pets for t in pet.get_pending_tasks()
+                if t.due_date is None or t.due_date <= today]
+
+    def filter_tasks(self, pet_name: Optional[str] = None,
+                     completed: Optional[bool] = None) -> list[Task]:
+        """Return tasks filtered by pet name and/or completion status.
+
+        Args:
+            pet_name: keep only this pet's tasks; None means all pets.
+            completed: True for finished tasks, False for pending ones; None for both.
+
+        A filter left as None is ignored, so no arguments returns every task
+        (including completed and future-dated ones). An unknown pet name gives [].
+        """
+        return [
+            task
+            for pet in self.pets
+            if pet_name is None or pet.name == pet_name
+            for task in pet.tasks
+            if completed is None or task.completed == completed
+        ]
 
 
 class Scheduler:
@@ -129,6 +181,7 @@ class Scheduler:
     def __init__(self, owner: Owner) -> None:
         """Create a scheduler that plans for the given owner."""
         self.owner = owner
+        self.warnings: list[str] = []  # conflicts found by the latest build_plan
 
     def build_plan(self) -> tuple[list[dict], list[dict]]:
         """Return (scheduled, skipped) lists of dicts for the owner's day."""
@@ -154,6 +207,7 @@ class Scheduler:
                 skipped.append({"task": task, "reason": "did not fit in the available time"})
 
         # Pass 2: order chosen tasks by preferred time (unset last), then lay out.
+        self.warnings = self.detect_conflicts(chosen)
         chosen.sort(key=lambda t: (t.preferred_time is None,
                                    t.preferred_time or time.min,
                                    PRIORITY_RANK[t.priority]))
@@ -190,6 +244,42 @@ class Scheduler:
                                             t.preferred_time is None,
                                             t.preferred_time or time.min,
                                             t.duration_minutes))
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Return a new list of tasks ordered by preferred_time, earliest first.
+
+        Tasks with no preferred_time go last. The sort key is a tuple
+        (preferred_time is None, preferred_time or time.min), so None is never
+        compared with a time. The sort is stable and the input list is unchanged.
+        """
+        return sorted(tasks, key=lambda t: (t.preferred_time is None,
+                                            t.preferred_time or time.min))
+
+    def detect_conflicts(self, tasks: list[Task]) -> list[str]:
+        """Return a warning message for each pair of timed tasks that overlap.
+
+        Only tasks with a preferred_time are checked, whether they belong to the
+        same pet or different pets. Two tasks overlap when one starts before the
+        other ends, so identical start times count; back-to-back tasks do not.
+        Tasks are sorted by start time, so the inner loop stops at the first task
+        that starts after the current one ends. It never raises; the caller decides
+        what to do with the messages (build_plan stores them in self.warnings).
+        """
+        timed = self.sort_by_time([t for t in tasks if t.preferred_time is not None])
+        warnings = []
+        for i, a in enumerate(timed):
+            a_start = _to_dt(a.preferred_time)
+            a_end = a_start + timedelta(minutes=a.duration_minutes)
+            for b in timed[i + 1:]:
+                b_start = _to_dt(b.preferred_time)
+                if b_start >= a_end:
+                    break  # sorted by start, so nothing later can overlap a
+                b_end = b_start + timedelta(minutes=b.duration_minutes)
+                warnings.append(
+                    f"Conflict: {a.title} ({a.pet_name}) {a_start:%H:%M}-{a_end:%H:%M} "
+                    f"overlaps {b.title} ({b.pet_name}) {b_start:%H:%M}-{b_end:%H:%M}"
+                )
+        return warnings
 
     def fits_in_time(self, task: Task, remaining: int, cursor: time) -> bool:
         """Return True if the task fits the remaining minutes and ends by day_end."""

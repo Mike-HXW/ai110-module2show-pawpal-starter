@@ -81,10 +81,10 @@ tests/test_pawpal py ..[100%]
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time()` uses `sorted()` with a lambda key on `preferred_time`, untimed tasks last; `Scheduler.sort_tasks()` orders by priority first | |
+| Filtering | `Owner.filter_tasks(pet_name, completed)` returns tasks matching a pet and/or status; `None` skips that filter | |
+| Conflict handling | `Scheduler.detect_conflicts()` returns a warning string for each pair of timed tasks that overlap, saved in `scheduler.warnings` | |
+| Recurring tasks | `Task.mark_complete()` returns a copy due +1 day (daily) or +7 days (weekly) via `timedelta`; `Pet.complete_task()` adds it | |
 
 ## 📸 Demo Walkthrough
 
