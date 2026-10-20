@@ -56,12 +56,23 @@ Today's plan for Jordan — pets: Mochi (dog), Luna (cat):
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+# Test command
+python -m pytest
 ```
+Test Description:
+Task basics (2): mark_complete flips the status, and add_task increases the pet's task count.
+Sorting (4): sort_by_time returns chronological order with untimed tasks last. It leaves the input list unchanged and handles an empty list, midnight, and equal times (input order kept).
+Filtering (1): filter_tasks by pet, by status, by both, and with an unknown pet.
+Recurrence (6):
+Daily and weekly completion create a follow-up task due the next day or the next week.
+A "once" task doesn't recur.
+A future-dated copy is excluded from today's tasks.
+The next date counts from due_date across a year-end.
+Completing an unknown id raises an error.
+The daily follow-up is pending, has the right id, and is attached to the pet.
+Conflict detection (4): Overlaps warn and back-to-back tasks don't. Same start time warns for the same pet and for different pets, and untimed tasks never conflict.
+Plan building (4): Empty plans for an owner with no pets or a pet with no tasks. A task longer than the budget is skipped. A task that exactly fills the budget and day_end is scheduled. The plan is in time order at preferred times.
+Validation (1): Bad duration or priority raises ValueError, and a failed edit() rolls back.
 
 Sample test output:
 
@@ -69,11 +80,13 @@ test session starts
 platform darwin -- Python 3.13.7, pytest-9.1.1, pluggy-1.6.0
 rootdir: /Users/mikewang/Desktop/CodePath/ai110-module2show-pawpal-starter
 plugins: anyio-4.15.1
-collected 2 items     
+collected 22 items     
 
-tests/test_pawpal py ..[100%]
+tests/test_pawpal py ......[100%]
 
-2 passed in 0.01s 
+22 passed in 0.02s 
+
+Confidence Level: 5 stars
 
 ## 📐 Smarter Scheduling
 
@@ -97,3 +110,4 @@ Describe your app in numbered steps so a reader can follow along without watchin
 5. <!-- Add more steps as needed -->
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+
